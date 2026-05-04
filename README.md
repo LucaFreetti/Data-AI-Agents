@@ -1,171 +1,149 @@
-# ⚡ EcoBot — AI Energy Analyst Agent
-An AI agent built with LangGraph and LLaMA 3.3 that helps households understand and optimize their solar energy data. EcoBot processes real IoT sensor data, answers natural language questions, generates charts, and delivers personalized energy-saving recommendations — all through a Streamlit chat interface.
+# EcoBot — Your Personal Energy Analyst
+
+EcoBot is a conversational energy analysis application.
+It allows users to upload solar production and household consumption data
+and query them in natural language through an interactive chat.
 
 ---
 
-## 🧰 Tech Stack
+## Architecture
 
-| Role | Tool |
-|------|------|
-| AI Framework | [LangGraph](https://github.com/langchain-ai/langgraph) — ReAct agent |
-| LLM | `llama-3.3-70b-versatile` via [Groq API](https://groq.com/) |
-| UI | [Streamlit](https://streamlit.io/) |
-| Solar Forecast API | [Forecast.Solar](https://forecast.solar/) |
-| Data Processing | pandas, numpy |
-| Visualization | matplotlib, seaborn |
+The application uses a **single agent** built with the **ReAct** pattern via LangGraph.
 
----
+**Why a single agent?**
 
-## 🤖 Agent Architecture — ReAct Pattern
+The domain is narrow and well-defined: two datasets and a fixed set of operations
+(cleaning, analysis, visualization, and recommendations).
+A multi-agent system would add unnecessary coordination complexity for this scope.
 
-EcoBot uses the **ReAct** (Reason + Act) pattern via `create_react_agent` from LangGraph:
+The agent has access to **6 tools**:
 
-```
-User question
-    │
-    ▼
-LLM reasons about which tool to call
-    │
-    ▼
-Tool executes and returns result
-    │
-    ▼
-LLM observes result and decides next step
-    │
-    ▼ (iterates until a final answer is reached)
-Response to user
-```
+| Tool                | Responsibility                                                               |
+| ------------------- | ---------------------------------------------------------------------------- |
+| clean_data          | Cleans raw CSV data (NaN interpolation, negative values → 0)                 |
+| analyze_production  | Descriptive statistics on solar production                                   |
+| user_consumption    | Descriptive statistics on household consumption                              |
+| charts_design       | Generates PNG charts (daily production + production vs consumption)          |
+| advisor             | Personalized energy-saving recommendations (surplus hours, self-sufficiency) |
+| forecast_production | Estimates today's solar production via Forecast.Solar API                    |
 
-The LLM never invents numerical data — it is constrained by a system prompt to always rely on tool outputs as the only source of truth.
+The underlying model is `llama-3.3-70b-versatile` via the **Groq API**.
+The user interface is built with **Streamlit**.
 
 ---
 
-## 🛠 Tools
+## Prerequisites
 
-| Tool | Description |
-|------|-------------|
-| `clean_data` | **Must run first.** Interpolates NaN values in solar production (linear), replaces negative readings with 0. Saves cleaned CSVs. |
-| `analyze_production` | Descriptive stats on solar production: total kWh, hourly average, best/worst day, peak production hour. |
-| `user_consumption` | Descriptive stats on household consumption: total kWh, peak day/hour, daily min/max. |
-| `charts_design` | Generates a 2-panel PNG: daily production over time + production vs. consumption overlay. |
-| `advisor` | Identifies surplus hours, flags evening peak vs. production mismatch, computes energy self-sufficiency %. Suggests battery storage if self-sufficiency < 50%. |
-| `forecast_production` | Calls Forecast.Solar API to estimate today's hourly solar production based on coordinates and installed kWp. |
+- Python 3.10+
+- A valid Groq API key
+- Jupyter Notebook or JupyterLab
+- The required Python libraries installed in your environment.
 
 ---
 
-## 🧠 System Prompt Design
+## Setup Instructions
 
-EcoBot's behavior is defined by a structured system prompt with four sections:
+### 1. Install dependencies
 
-- **Core Rules** — never invent values; always use tools; reply in the user's language
-- **Mandatory Workflow** — `clean_data` must be called first; then route to the correct tool based on intent
-- **Safety Behavior** — if tool output is insufficient, say so; never enrich missing data
-- **Response Style** — concise, practical, quote exact values from tools
-
----
-
-## 📊 Data Format
-
-EcoBot expects two CSV files uploaded via the sidebar:
-
-**`solar_production_raw.csv`**
-```
-timestamp,kwh_produced
-2025-01-01 06:00:00,0.32
-2025-01-01 07:00:00,1.15
-...
-```
-
-**`household_consumption.csv`**
-```
-timestamp,kwh_consumed
-2025-01-01 06:00:00,1.42
-2025-01-01 07:00:00,1.87
-...
-```
-
-The synthetic dataset generator (included in the notebook) creates 30 days of hourly data with realistic patterns: zero production at night, an evening consumption peak, and intentional dirty data (NaN gaps, negative values) for the cleaning tool to handle.
-
----
-
-## 🚀 Getting Started
-
-### 1. Clone the repository
+You can install the dependencies manually:
 
 ```bash
-git clone https://github.com/<your-username>/ecobot-energy-agent.git
-cd ecobot-energy-agent
+pip install streamlit langchain langchain-groq langgraph python-dotenv pandas numpy matplotlib seaborn requests
 ```
 
-### 2. Install dependencies
+Or install them from a `requirements.txt` file, if available.
 
-```bash
-pip install langchain langchain-groq langgraph streamlit pandas numpy matplotlib seaborn python-dotenv requests
-```
-
-### 3. Set up environment variables
+### 2. Configure API Key
 
 Create a `.env` file in the project root:
 
-```
+```env
 GROQ_API_KEY=your_groq_api_key_here
 ```
 
-Get a free API key at [console.groq.com](https://console.groq.com/).
+A free API key can be created from [https://console.groq.com](https://console.groq.com).
 
-### 4. Generate sample data (optional)
+### 3. Generate the Streamlit app
 
-Run the first cell of `agente.ipynb` to generate `solar_production_raw.csv` and `household_consumption.csv`.
+Run the notebook cell that writes `app.py`.
 
-### 5. Launch the app
+This project generates the Streamlit app from the notebook, so `app.py`
+must be created or overwritten before running Streamlit.
+
+### 4. Run the app
 
 ```bash
 streamlit run app.py
 ```
 
-Then open [http://localhost:8501](http://localhost:8501), upload your CSVs from the sidebar, and start chatting.
+The app will open in your browser at `http://localhost:8501`.
 
 ---
 
-## 💬 Example Questions
+## Usage
 
-- *"How much energy did I produce this month?"*
-- *"Show me a chart of production vs consumption"*
-- *"How can I reduce my electricity bill?"*
-- *"What is my energy self-sufficiency?"*
-- *"How much solar energy am I expected to produce today?"*
+1. Upload the two CSV files from the **sidebar**:
+   - `solar_production_raw.csv`
+   - `household_consumption.csv`
+(If the columns don't match, an error message will appear before the agent is initialized.)
+
+2. Wait for the confirmation message:
+   ✅ *"Datas uploaded! EcoBot is ready."*
+3. Ask your questions in the chat interface.
 
 ---
 
-## 📁 Project Structure
+## Example Use Cases
 
+**Production analysis**
+
+> "How much energy did I produce?"
+> → Total kWh, hourly average, best day, worst day, peak production hour.
+
+**Consumption analysis**
+
+> "What is my household consumption?"
+> → Total consumed energy, hourly average, highest and lowest day, peak hour.
+
+**Visualization**
+
+> "Show me a chart of my production vs consumption"
+> → A PNG chart with daily production and a production-versus-consumption comparison.
+
+**Energy-saving recommendations**
+
+> "How can I reduce my electricity bill?"
+> → Best surplus hours for appliance usage, evening peak analysis, and self-sufficiency suggestions.
+
+**Solar forecast**
+>"How much energy will I produce today?"
+>→ Hourly forecast and daily total via Forecast.Solar API (default: Lima, Peru, 5 kWp).
+
+---
+
+## Project Structure
+
+```text
+├── agente.ipynb
+├── app.py
+├── .env
+├── solar_production_raw.csv
+├── household_consumption.csv
+├── solar_production_clean.csv       
+├── household_consumption_clean.csv 
+└── charts/
+    └── analisi_energetica.png
 ```
-.
-├── agente.ipynb                   # Full development notebook
-├── app.py                         # Streamlit app (auto-generated by notebook)
-├── solar_production_raw.csv       # Raw IoT sensor data (generated or uploaded)
-├── household_consumption.csv      # Household consumption data
-├── solar_production_clean.csv     # Cleaned by clean_data tool (auto-generated)
-├── household_consumption_clean.csv
-├── charts/
-│   └── analisi_energetica.png     # Chart output
-├── .env                           # API keys (not committed)
-└── README.md
-```
+
+`app.py` is generated from the notebook.
+The cleaned CSV files and chart image are created during execution.
 
 ---
 
-## ⚙️ Key Implementation Details
+## Tech Stack
 
-- **`@lru_cache(maxsize=1)`** on `load_data()` — CSVs are read once and served from memory on all subsequent tool calls, avoiding repeated disk I/O
-- **Clean-first rule** — the system prompt enforces `clean_data` as a mandatory first step before any analysis, preventing corrupted statistics from dirty sensor data
-- **Streamlit session state** — the agent instance and full chat history are persisted across reruns via `st.session_state`
-- **Chart display trigger** — the chart PNG is shown only when the user's message contains visual intent keywords (`chart`, `graph`, `grafico`, etc.)
-- **Forecast.Solar defaults** — `lat="-12.04"`, `lon="-77.03"`, `kwp="5.0"` (Lima, Peru, 5 kWp system) unless the user specifies otherwise
-
----
-
-## 👤 Author
-
-**Luca Frittitta** — AI Agent Project  
-LangGraph · LLaMA 3.3 · Groq · Streamlit · Forecast.Solar
+- **LLM:** `llama-3.3-70b-versatile` via Groq
+- **Agent framework:** LangGraph with `create_react_agent`
+- **UI:** Streamlit
+- **Data processing:** Pandas, NumPy
+- **Visualization:** Matplotlib, Seaborn.

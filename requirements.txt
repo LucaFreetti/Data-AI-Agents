@@ -1,0 +1,13 @@
+langchain
+langgraph
+langchain-core
+langchain-community
+langchain-openai
+langchain-groq
+streamlit
+dotenv
+pandas
+matplotlib
+seaborn
+numpy
+requests

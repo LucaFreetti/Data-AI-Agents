@@ -1,4 +1,4 @@
-# EcoBot — Your Personal Energy Analyst
+# ⚡  EcoBot — Your Personal Energy Analyst
 
 EcoBot is a conversational energy analysis application.
 It allows users to upload solar production and household consumption data
